@@ -1,0 +1,277 @@
+//Author: Sam Kuersteiner, Colin Rogers
+// Due: 11/28/22
+// Purpose: Hangman Project
+
+import java.io.FileReader;
+import java.util.Objects;
+import java.util.Scanner;
+
+public class Hangman {
+    final static int MAX_PENALTY_STROKES = 10;
+
+    public static void main(String[] args) {
+        String[] wordList = readWordList(
+                "/Users/samkuersteiner/Downloads/words81520.csv",
+                81520);
+        System.out.println("Game instructions:");
+        System.out.println(" ");
+        System.out.println("************************");
+        System.out.println(" ");
+        System.out.println("If you decide to play the game, a word will be chosen, at random, from a list " +
+                "of thousands of words.");
+        System.out.println(" ");
+        System.out.println("The word will be displayed as a number of dashes.");
+        System.out.println(" ");
+        System.out.println("You must guess all the consonant letters in the word, before guessing 10 incorrect " +
+                "letters.");
+        System.out.println("You are NOT allowed to guess vowels, so if you do guess a vowel it will be treated " +
+                "as a wrong letter.");
+        System.out.println("To guess the final word, just enter the word you " +
+                "think it is when the game prompts you to. ");
+        System.out.println("Do this only when you are completely sure, because you lose if the guess is incorrect.");
+        Scanner in = new Scanner(System.in);
+        System.out.println(" ");
+        System.out.println("What is your name?");
+        String playerName = in.nextLine();
+        System.out.print("Do you wish to play, " + playerName + "? ");
+        System.out.println("Please enter yes to play or no to not play.");
+        boolean userWantsToPlay = findIfUserWantsToPlay(in.nextLine());
+        int numberOfTries = 0;
+        while (userWantsToPlay) {
+            int k = (int) (Math.random() * wordList.length);
+            String randomWord = wordList[k];
+            while (Objects.equals(randomWord, "xxx")) {
+                k = (int) (Math.random() * wordList.length);
+                randomWord = wordList[k];
+            }
+            wordList[k] = "xxx";
+            char[] currentStateOfWord = new char[randomWord.length()];
+            for (int i = 0; i < currentStateOfWord.length; i++) {
+                currentStateOfWord[i] = '_';
+            }
+            int numberOfMisses = 0;
+            boolean solved = findIfSolved(currentStateOfWord);
+            char[] listOfUsedGuesses = new char[MAX_PENALTY_STROKES];
+            boolean userWantsToRestart = false;
+            boolean letterFound;
+            boolean answerCompleteExceptForVowels = false;
+            while (numberOfMisses < MAX_PENALTY_STROKES && !solved && !userWantsToRestart &&
+                    !answerCompleteExceptForVowels) {
+                numberOfTries++;
+                letterFound = false;
+                System.out.println(" ");
+                System.out.println("*****************************************");
+                System.out.println(" ");
+                System.out.println("The current state of the word is:");
+                for (int w = 0; w < currentStateOfWord.length; w++) {
+                    System.out.print(currentStateOfWord[w]);
+                    System.out.print(" ");
+                }
+                System.out.println(" ");
+                System.out.println("Number of misses left: " + (MAX_PENALTY_STROKES - numberOfMisses));
+                System.out.println("List of wrong used letters:");
+                for (int j = 0; j < listOfUsedGuesses.length; j++) {
+                    System.out.print(listOfUsedGuesses[j]);
+                }
+                System.out.println(" ");
+                System.out.println("Please input a guess:");
+                String userInput = in.nextLine();
+                userInput = userInput.toLowerCase();
+                char userGuess = findFirstChar(userInput);
+                if (userGuess == 0) {
+                    if (Objects.equals(userInput, "#")) {
+                        userWantsToRestart = true;
+                    } else {
+                        System.out.print("That is not a letter. ");
+                        System.out.println("Please enter a letter or \"#\"next time.");
+                        numberOfMisses++;
+                    }
+                }
+                boolean letterAlreadyGuessed = isLetterGuessedAlready(currentStateOfWord, listOfUsedGuesses, userInput);
+                for (int u = 0; u < randomWord.length(); u++) {
+                    if (userGuess == randomWord.charAt(u) && isConsonant(userGuess) && !letterAlreadyGuessed) {
+                        currentStateOfWord[u] = randomWord.charAt(u);
+                        letterFound = true;
+                    }
+                }
+                if (!letterFound || letterAlreadyGuessed) {
+                    numberOfMisses++;
+                }
+                if (!letterFound && !letterAlreadyGuessed) {
+                    listOfUsedGuesses[numberOfMisses - 1] = userGuess;
+                }
+                answerCompleteExceptForVowels = isAnswerCompleteExceptForVowels(currentStateOfWord, randomWord);
+            }
+            if (userWantsToRestart) {
+                System.out.println(" ");
+                System.out.println("*********************************");
+                System.out.println(" ");
+                System.out.println("Nice try!");
+                System.out.println("The correct word was: " + randomWord);
+                System.out.println("Would you like to play again, " + playerName + "?");
+                userWantsToPlay = findIfUserWantsToPlay(in.nextLine());
+                numberOfTries = 0;
+            }
+            if (numberOfMisses < MAX_PENALTY_STROKES && !solved && answerCompleteExceptForVowels) {
+                System.out.println(" ");
+                System.out.println("*********************************");
+                System.out.println(" ");
+                System.out.println(currentStateOfWord);
+                System.out.print("Your guess is complete except for vowels. ");
+                System.out.println(" ");
+                System.out.println("You have one chance to guess the word.");
+                System.out.println("Please enter your guess for the word:");
+                boolean fullWordGuessCorrect = fullWordGuess(in.next(), randomWord);
+                if (fullWordGuessCorrect) {
+                    numberOfTries++;
+                    System.out.println(" ");
+                    System.out.println("*********************************");
+                    System.out.println(" ");
+                    System.out.println("Congratulations, " + playerName + " you answered correctly!");
+                    System.out.println("it took you " + numberOfTries + " tries to get the word: " + randomWord);
+                    System.out.println("Would you like to play again, " + playerName + "?");
+                    userWantsToPlay = findIfUserWantsToPlay(in.nextLine());
+                    numberOfTries = 0;
+                }
+                if (!fullWordGuessCorrect) {
+                    System.out.println(" ");
+                    System.out.println("*********************************");
+                    System.out.println(" ");
+                    System.out.println("Nice try!");
+                    System.out.println("The correct word was: " + randomWord);
+                    System.out.println("Would you like to play again, " + playerName + "?");
+                    userWantsToPlay = findIfUserWantsToPlay(in.nextLine());
+                    numberOfTries = 0;
+                }
+            }
+            if (numberOfMisses == MAX_PENALTY_STROKES) {
+                System.out.println(" ");
+                System.out.println("*********************************");
+                System.out.println(" ");
+                System.out.println("Nice try!");
+                System.out.println("The correct word was: " + randomWord);
+                System.out.println("Would you like to play again, " + playerName + "?");
+                userWantsToPlay = findIfUserWantsToPlay(in.nextLine());
+                numberOfTries = 0;
+
+            }
+        }
+        System.out.println("Thanks for playing, " + playerName + "!");
+    }
+
+
+    public static char findFirstChar(String s) {
+        if (s.length() == 0) {
+            System.out.println("Please enter a guess next time.");
+            return (char) -1;
+        }
+        for (int i = 0; i < s.length(); i++) {
+            if (s.charAt(i) >= 'a' && s.charAt(i) <= 'z') {
+                return s.charAt(i);
+            }
+        }
+        return 0;
+    }
+
+
+    public static boolean findIfUserWantsToPlay(String playerAnswerWantsToPlay) {
+        playerAnswerWantsToPlay = playerAnswerWantsToPlay.toLowerCase();
+        while (!Objects.equals(playerAnswerWantsToPlay, "yes") &&
+                !Objects.equals(playerAnswerWantsToPlay, "no")) {
+            Scanner in = new Scanner(System.in);
+            System.out.println("Please enter yes to play or no to not play.");
+            playerAnswerWantsToPlay = in.nextLine();
+            playerAnswerWantsToPlay = playerAnswerWantsToPlay.toLowerCase();
+        }
+        if (playerAnswerWantsToPlay.equals("yes")) {
+            return true;
+        }
+        if (playerAnswerWantsToPlay.equals("no")) {
+            return false;
+        } else {
+            return true;
+        }
+    }
+
+
+    public static String[] readWordList(String pathAndFileName, int wordListSize) {
+        String[] tempArray = new String[wordListSize];
+        try {
+            Scanner scfile = new Scanner(new FileReader(pathAndFileName));
+            for (int i = 0; i < wordListSize; i++) {
+                tempArray[i] = scfile.nextLine();
+            }
+            scfile.close();
+        } catch (Exception e) {
+            System.out.println("Exception " + e);
+        }
+        return tempArray;
+    }
+
+
+    public static boolean isAnswerCompleteExceptForVowels(char[] currentStateOfWord, String randomWord) {
+        for (int i = 0; i < currentStateOfWord.length; i++) {
+            if (currentStateOfWord[i] == '_' && isConsonant(randomWord.charAt(i))) {
+                return false;
+            }
+        }
+        return true;
+
+    }
+
+
+    public static boolean isVowel(char q) {
+        String qString = q + "";
+        qString = qString.toLowerCase();
+        q = qString.charAt(0);
+        if (q == 'a' || q == 'e' || q == 'i' || q == 'o' || q == 'u') {
+            return true;
+        } else {
+            return false;
+        }
+    }
+
+
+    public static boolean isConsonant(char w) {
+        return !isVowel(w);
+    }
+
+
+    public static boolean findIfSolved(char[] currentStateOfWord) {
+        for (int i = 0; i < currentStateOfWord.length; i++) {
+            if (currentStateOfWord[i] == '_') {
+                return false;
+            }
+        }
+        return true;
+    }
+
+
+    public static boolean isLetterGuessedAlready(char[] currentStateOfWord, char[] listOfUsedGuesses, String userGuess) {
+        if (userGuess.length() == 0) {
+            return false;
+        }
+        for (int i = 0; i < currentStateOfWord.length; i++) {
+            if (userGuess.charAt(0) == currentStateOfWord[i]) {
+                return true;
+            }
+        }
+        for (int k = 0; k < listOfUsedGuesses.length; k++) {
+            if (userGuess.charAt(0) == listOfUsedGuesses[k]) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    public static boolean fullWordGuess(String playerAnswerForFinalGuess, String randomWord) {
+        if (playerAnswerForFinalGuess.length() == 0) {
+            return false;
+        }
+        playerAnswerForFinalGuess = playerAnswerForFinalGuess.toLowerCase();
+        if ((playerAnswerForFinalGuess).equals(randomWord)) {
+            return true;
+        }
+        return false;
+    }
+}
